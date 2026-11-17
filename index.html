@@ -1,0 +1,1186 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#2563eb">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Aircraft Calc">
+<link rel="apple-touch-icon" href="./icon-192.png">
+<meta name="mobile-web-app-capable" content="yes">
+
+<title>Aircraft Calculator - Leaflet Offline Map</title>
+
+<!-- Leaflet CSS -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+
+<style>
+:root {
+  --bg: #f8fafc;
+  --card-bg: #ffffff;
+  --card-border: #e2e8f0;
+  --input-bg: #f1f5f9;
+  --input-border: #cbd5e1;
+  --text-main: #0f172a;
+  --text-muted: #64748b;
+  --primary: #2563eb;
+  --primary-glow: rgba(37, 99, 235, 0.12);
+  --green: #10b981;
+  --red: #ef4444;
+  --result-card-bg: #f8fafc;
+  --summary-bg: #0f172a;
+}
+
+* { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; -webkit-tap-highlight-color: transparent; }
+body { 
+  margin: 0; 
+  background: var(--bg); 
+  color: var(--text-main); 
+  padding: 12px 12px 110px 12px; 
+  min-height: 100vh;
+}
+main { max-width: 650px; margin: auto; }
+
+/* Header */
+.top { 
+  background: linear-gradient(135deg, #1e40af, #2563eb); 
+  border: 1px solid var(--primary);
+  color: white; 
+  padding: 14px 16px; 
+  border-radius: 16px; 
+  margin-bottom: 12px;
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.18);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.top-icon {
+  width: 40px; height: 40px; background: rgba(255, 255, 255, 0.2);
+  border-radius: 10px; display: flex; align-items: center; justify-content: center;
+  color: #fff; flex-shrink: 0;
+}
+h1 { font-size: clamp(15px, 4vw, 17px); font-weight: 800; margin: 0 0 2px; color: #fff; }
+.top p { margin: 0; color: #bfdbfe; font-size: 11px; font-weight: 500; }
+
+/* Panels */
+.panel { 
+  background: var(--card-bg); border: 1px solid var(--card-border); 
+  border-radius: 16px; padding: 16px; box-shadow: 0 4px 16px rgba(0,0,0,0.04); margin-bottom: 14px; 
+}
+h2 { 
+  font-size: 13px; font-weight: 700; text-transform: uppercase;
+  color: var(--primary); margin: 0 0 14px; border-bottom: 2px solid #eff6ff; 
+  padding-bottom: 8px; display: flex; align-items: center; gap: 8px;
+}
+
+.grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.field { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+label { font-weight: 600; font-size: 11px; color: var(--text-muted); text-transform: uppercase; }
+
+input[type="text"], input[type="number"], select { 
+  width: 100% !important; height: 46px !important; padding: 0 8px !important; 
+  border: 1px solid var(--input-border) !important; border-radius: 10px !important; 
+  background: var(--input-bg) !important; color: var(--text-main) !important; 
+  font-size: 16px !important; font-weight: 700 !important; text-align: center !important;
+  -webkit-appearance: none; appearance: none;
+}
+input:focus, select:focus { outline: none !important; border-color: var(--primary) !important; background: #ffffff !important; }
+
+.fuel-work-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.fuel-work-row label { font-size: 10px; text-align: center; }
+.coord-row { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; margin-bottom: 8px; }
+
+.results-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 14px; }
+.result-card { background: var(--result-card-bg); border: 1px solid var(--card-border); border-radius: 12px; padding: 12px 6px; text-align: center; }
+.result-card small { display: block; color: var(--text-muted); font-size: 10px; font-weight: 700; text-transform: uppercase; margin-bottom: 4px; }
+.result-card strong { font-size: clamp(15px, 4vw, 18px); font-weight: 800; color: var(--primary); }
+
+.flight-summary { background: var(--summary-bg); border-radius: 14px; padding: 14px; margin-top: 14px; color: #fff; }
+.summary-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #1e293b; font-size: 13px; }
+.summary-row:last-child { border-bottom: none; }
+.summary-row span { color: #94a3b8; font-weight: 600; }
+.summary-row strong { color: #38bdf8; font-size: 14px; font-weight: 700; }
+.unit-select { width: auto !important; height: 28px !important; padding: 2px 10px !important; font-size: 11px !important; background-color: #1e293b !important; color: #38bdf8 !important; border: 1px solid #334155 !important; border-radius: 6px !important; }
+
+.status-bad { color: #f87171 !important; font-weight: 800; }
+.status-good { color: #34d399 !important; font-weight: 800; }
+
+/* Action Buttons */
+.action-buttons-3 { 
+  display: grid; 
+  grid-template-columns: 1.3fr 1.2fr 0.8fr; 
+  gap: 6px; 
+  margin-top: 14px; 
+}
+.btn-calc { height: 46px; font-size: 12px; font-weight: 800; border: none; border-radius: 10px; background: var(--green); color: white; cursor: pointer; padding: 0 4px; }
+.btn-view-route { height: 46px; font-size: 12px; font-weight: 800; border: none; border-radius: 10px; background: var(--primary); color: white; cursor: pointer; padding: 0 4px; }
+.btn-reset { height: 46px; font-size: 12px; font-weight: 800; border: none; border-radius: 10px; background: #fef2f2; color: var(--red); border: 1px solid #fecaca; cursor: pointer; padding: 0 4px; }
+.btn-calc:active, .btn-view-route:active, .btn-reset:active { transform: scale(0.97); }
+
+/* Tabs Bar */
+.tabs { 
+  position: fixed; bottom: 0; left: 0; right: 0; 
+  background: rgba(255, 255, 255, 0.96); backdrop-filter: blur(12px); 
+  border-top: 1px solid var(--card-border); display: flex; padding: 8px 12px 20px 12px; gap: 12px; z-index: 100; max-width: 650px; margin: auto;
+}
+.tab { flex: 1; height: 42px; border: none; background: transparent; color: var(--text-muted); font-weight: 700; border-radius: 10px; cursor: pointer; font-size: 12px; display: flex; align-items: center; justify-content: center; gap: 6px; }
+.tab.active { background: var(--primary-glow); color: var(--primary); border: 1px solid var(--primary); }
+
+/* LEAFLET FULLSCREEN MODAL POP-UP */
+.map-modal-overlay {
+  position: fixed; inset: 0; background: rgba(15, 23, 42, 0.92); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 8px;
+}
+.map-modal-content {
+  background: #0f172a; border: 1px solid #334155; border-radius: 18px;
+  width: 100%; max-width: 720px; height: 92vh; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 20px 40px rgba(0,0,0,0.6);
+}
+.map-modal-header {
+  display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 6px;
+  padding: 10px 12px; background: #1e293b; border-bottom: 1px solid #334155;
+}
+.map-modal-header h3 { margin: 0; font-size: 12px; font-weight: 800; color: #38bdf8; }
+.modal-header-actions { display: flex; align-items: center; gap: 6px; }
+.btn-toggle-arrows {
+  background: #2563eb; color: #ffffff; border: 1px solid #60a5fa; border-radius: 8px;
+  padding: 6px 10px; font-size: 11px; font-weight: 800; cursor: pointer;
+}
+.btn-toggle-arrows.active { background: #10b981; border-color: #34d399; }
+.btn-exit-modal {
+  background: #ef4444; color: #ffffff; border: none; border-radius: 8px;
+  padding: 6px 12px; font-size: 12px; font-weight: 800; cursor: pointer;
+}
+.map-modal-body { padding: 8px; flex: 1; display: flex; flex-direction: column; position: relative; overflow: hidden; }
+
+/* Airports Filter Box inside Modal */
+.map-filter-box {
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 10px;
+  padding: 8px 10px;
+  margin-bottom: 8px;
+}
+.map-filter-header {
+  display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; padding-bottom: 4px; border-bottom: 1px solid #334155;
+}
+.map-filter-header span { font-size: 11px; font-weight: 800; color: #38bdf8; }
+.filter-bulk-btns { display: flex; gap: 5px; }
+.btn-mini {
+  padding: 3px 7px; font-size: 10px; font-weight: 700; border-radius: 6px; border: 1px solid #475569; background: #334155; color: #e2e8f0; cursor: pointer;
+}
+.btn-mini:active { background: #475569; }
+
+/* Add Airport Form */
+.add-airport-box {
+  background: #0f172a; border: 1px dashed #64748b; border-radius: 8px; padding: 8px; margin-bottom: 6px;
+}
+.add-airport-title { font-size: 10px; font-weight: 800; color: #38bdf8; margin-bottom: 4px; }
+.btn-add-ap { width: 100%; height: 32px; margin-top: 4px; border: none; border-radius: 6px; background: #10b981; color: #ffffff; font-size: 11px; font-weight: 800; cursor: pointer; }
+
+.airport-checklist {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 5px; max-height: 110px; overflow-y: auto; padding-right: 4px;
+}
+.airport-check-item {
+  display: flex; align-items: center; justify-content: space-between; gap: 6px; font-size: 11px; font-weight: 600; color: #e2e8f0;
+  background: #0f172a; padding: 4px 8px; border-radius: 6px; border: 1px solid #334155; cursor: pointer; user-select: none;
+}
+.airport-check-left { display: flex; align-items: center; gap: 5px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.airport-check-item input[type="checkbox"] { width: 13px !important; height: 13px !important; margin: 0; accent-color: #ef4444; cursor: pointer; flex-shrink: 0; }
+.btn-del-ap { background: #7f1d1d; color: #fca5a5; border: none; border-radius: 4px; font-size: 10px; font-weight: 800; padding: 1px 4px; cursor: pointer; flex-shrink: 0; }
+
+/* Leaflet container */
+#leafletEgyptMap {
+  width: 100%;
+  flex: 1;
+  border-radius: 12px;
+  border: 2px solid #334155;
+  background: #06182c;
+  z-index: 1;
+}
+
+/* Permanent Airport Labels */
+.airport-permanent-label {
+  background: rgba(15, 23, 42, 0.88) !important;
+  border: 1px solid rgba(255, 255, 255, 0.35) !important;
+  color: #ffffff !important;
+  font-weight: 800 !important;
+  font-size: 9px !important;
+  padding: 2px 5px !important;
+  border-radius: 5px !important;
+  white-space: nowrap !important;
+}
+
+.route-arrow-marker { display: flex; align-items: center; justify-content: center; background: transparent; border: none; }
+
+.map-legend-bar {
+  display: flex; flex-wrap: wrap; gap: 12px; margin-top: 8px; font-size: 11px; font-weight: 700; color: #e2e8f0; justify-content: center;
+}
+.legend-item { display: inline-flex; align-items: center; gap: 5px; }
+.dot-go { width: 12px; height: 4px; background: #ef4444; display: inline-block; border-radius: 2px; }
+.dot-back { width: 12px; height: 4px; background: #a855f7; display: inline-block; border-radius: 2px; }
+
+
+/* Speed / Distance / Time calculator popup */
+.sdt-open-btn { width:100%; min-height:46px; margin:-2px 0 14px; border:0; border-radius:10px; background:linear-gradient(135deg,#0f766e,#0d9488); color:#fff; font-size:13px; font-weight:800; cursor:pointer; box-shadow:0 4px 10px rgba(13,148,136,.18); }
+.sdt-overlay { position:fixed; inset:0; z-index:1200; display:flex; align-items:center; justify-content:center; padding:14px; background:rgba(15,23,42,.78); }
+.sdt-dialog { width:100%; max-width:560px; max-height:92dvh; overflow:auto; background:#fff; color:#0f172a; border:1px solid #cbd5e1; border-radius:18px; box-shadow:0 22px 60px rgba(0,0,0,.35); padding:18px; }
+.sdt-heading { margin:0 0 6px; color:#1d4ed8; font-size:18px; font-weight:900; text-align:center; }
+.sdt-subtitle { margin:0 0 16px; color:#64748b; font-size:12px; text-align:center; }
+.sdt-fields { display:grid; grid-template-columns:1fr; gap:12px; }
+.sdt-field { padding:12px; border:1px solid #e2e8f0; border-radius:12px; background:#f8fafc; }
+.sdt-field label { display:block; margin-bottom:7px; color:#334155; font-size:12px; }
+.sdt-control-row { display:grid; grid-template-columns:minmax(0,1fr) 112px; gap:8px; }
+.sdt-control-row input,.sdt-control-row select { min-width:0; }
+.sdt-formula { margin:14px 0; padding:10px; border-radius:10px; background:#eff6ff; color:#1e40af; text-align:center; font-size:13px; font-weight:800; }
+.sdt-exit { width:100%; min-height:46px; border:0; border-radius:10px; background:#dc2626; color:#fff; font-size:14px; font-weight:900; cursor:pointer; }
+.sdt-open-btn:active,.sdt-exit:active { transform:scale(.98); }
+@media (min-width:520px) { .sdt-fields { grid-template-columns:1fr; } .sdt-dialog { padding:22px; } }
+
+.hidden { display: none !important; }
+.note { font-size: 10px; color: var(--text-muted); margin-top: 4px; }
+</style>
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="apple-touch-icon" href="./icon-192.png">
+</head>
+<body>
+<main>
+<header class="top">
+  <div class="top-icon">
+    <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
+  </div>
+  <div>
+    <h1>AeroCalc / حاسبة الطائرات</h1>
+    <p>Leaflet Offline Flight & Navigation Planner</p>
+  </div>
+</header>
+
+<!-- Weight Calculator Panel -->
+<section class="panel" id="weightPanel">
+  <h2>Weight & Fuel Limit / الأوزان والوقود</h2>
+  <button class="sdt-open-btn" id="openSdtCalculator" type="button">Speed – Distance – Time Calculator / حاسبة السرعة والمسافة والزمن</button>
+  <div class="grid">
+    <div class="field">
+      <label for="airport">Departure Airport / المطار</label>
+      <select id="airport">
+        <option value="siwa">Siwa / سيوة — MTOW 1191 kg</option>
+        <option value="miliz">El Melliz / مليز — MTOW 1183 kg</option>
+        <option value="owainat">East Oweinat / شرق العوينات — MTOW 1187 kg</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="aircraft">A/C No. / رقم الطائرة</label>
+      <select id="aircraft"><option value="">Choose aircraft</option></select>
+    </div>
+    <div class="field">
+      <label for="weightFuelLitres">Fuel (L) / Avail. Fuel</label>
+      <input id="weightFuelLitres" type="text" inputmode="decimal" pattern="[0-9]*" placeholder="Total fuel">
+    </div>
+    <div class="field">
+      <label for="extra">Additional Item / حمولة</label>
+      <select id="extra">
+        <option value="0">None — 0 kg</option>
+        <option value="57">BA — 57 kg</option>
+        <option value="38">TL — 38 kg</option>
+        <option value="21">L of (TL) — 21 kg</option>
+        <option value="11">L of BA — 11 kg</option>
+      </select>
+    </div>
+  </div>
+
+  <div style="margin-top:14px;">
+    <button class="btn-reset" id="resetWeight" type="button" style="width:100%">Reset Weight / إعادة ضبط</button>
+  </div>
+
+  <div class="results-grid">
+    <div class="result-card">
+      <small>Total Weight (KG)</small>
+      <strong id="totalKg">0.00 kg</strong>
+    </div>
+    <div class="result-card">
+      <small>Total Weight (POUND)</small>
+      <strong id="totalLb">0.00 lb</strong>
+    </div>
+  </div>
+  <div id="weightStatus" style="margin-top:10px; font-weight:700; text-align:center; font-size: 12px;"></div>
+</section>
+
+<!-- Navigation Calculator Panel -->
+<section class="panel hidden" id="navPanel">
+  <h2>Navigation & Flight Plan / الملاحة وتخطيط الرحلة</h2>
+  
+  <div class="grid" style="margin-bottom:10px;">
+    <div class="field" style="grid-column: 1 / -1;">
+      <label for="navAirport">Starting Point (From) / نقطة البداية</label>
+      <select id="navAirport">
+        <option value="siwa">Siwa Airport / مطار سيوة</option>
+        <option value="siwaTown">Siwa Town / سيوة البلد</option>
+        <option value="baheEldeen">Bahe EL Deen / بهي الدين</option>
+        <option value="miliz">El Melliz Airport / مطار مليز</option>
+        <option value="owainat">East Oweinat / مطار شرق العوينات</option>
+        <option value="custom">Manual Coordinates / إحداثيات يدوية</option>
+      </select>
+      <div class="note" id="startAirportCoords">N 29° 33′ 54.1″ · E 025° 35′ 58.3″</div>
+    </div>
+  </div>
+
+  <!-- Manual Start Coordinates -->
+  <div class="hidden" id="manualStart" style="margin-bottom:10px;">
+    <label style="margin-bottom:4px; display:block;">MANUAL STARTING POINT (POINT A)</label>
+    <div class="coord-row">
+      <div class="field"><label>Dir</label><select id="startLatHem"><option>N</option><option>S</option></select></div>
+      <div class="field"><label>Lat (°)</label><input id="startLatDeg" type="text" inputmode="decimal" placeholder="Deg"></div>
+      <div class="field"><label>Min (′)</label><input id="startLatMin" type="text" inputmode="decimal" placeholder="Min"></div>
+      <div class="field"><label>Sec (″)</label><input id="startLatSec" type="text" inputmode="decimal" placeholder="Sec"></div>
+    </div>
+    <div class="coord-row">
+      <div class="field"><label>Dir</label><select id="startLonHem"><option>E</option><option>W</option></select></div>
+      <div class="field"><label>Lon (°)</label><input id="startLonDeg" type="text" inputmode="decimal" placeholder="Deg"></div>
+      <div class="field"><label>Min (′)</label><input id="startLonMin" type="text" inputmode="decimal" placeholder="Min"></div>
+      <div class="field"><label>Sec (″)</label><input id="startLonSec" type="text" inputmode="decimal" placeholder="Sec"></div>
+    </div>
+  </div>
+
+  <!-- Target Coordinates -->
+  <label style="margin-bottom:4px; display:block;">DESTINATION POINT (POINT B)</label>
+  <div class="coord-row">
+    <div class="field"><label>Dir</label><select id="targetLatHem"><option>N</option><option>S</option></select></div>
+    <div class="field"><label>Lat (°)</label><input id="targetLatDeg" type="text" inputmode="decimal" placeholder="Deg"></div>
+    <div class="field"><label>Min (′)</label><input id="targetLatMin" type="text" inputmode="decimal" placeholder="Min"></div>
+    <div class="field"><label>Sec (″)</label><input id="targetLatSec" type="text" inputmode="decimal" placeholder="Sec"></div>
+  </div>
+  <div class="coord-row">
+    <div class="field"><label>Dir</label><select id="targetLonHem"><option>E</option><option>W</option></select></div>
+    <div class="field"><label>Lon (°)</label><input id="targetLonDeg" type="text" inputmode="decimal" placeholder="Deg"></div>
+    <div class="field"><label>Min (′)</label><input id="targetLonMin" type="text" inputmode="decimal" placeholder="Min"></div>
+    <div class="field"><label>Sec (″)</label><input id="targetLonSec" type="text" inputmode="decimal" placeholder="Sec"></div>
+  </div>
+
+  <div style="margin: 10px 0;">
+    <label style="display:flex; align-items:center; gap:8px; font-weight:700; color:var(--text-main); cursor:pointer;">
+      <input id="roundTrip" type="checkbox" style="width:18px; height:18px;"> Round Trip (Go & Return) / ذهاب وعودة
+    </label>
+  </div>
+
+  <!-- Fuel & Work Inputs -->
+  <div style="margin-top:12px; border-top:1px solid var(--card-border); padding-top:10px;">
+    <label style="margin-bottom:8px; display:block;">Fuel & Work Time / الوقود وزمن العمل</label>
+    <div class="fuel-work-row">
+      <div class="field">
+        <label for="totalFuel">Avail. Fuel</label>
+        <input id="totalFuel" type="text" inputmode="decimal" placeholder="Total fuel">
+      </div>
+      <div class="field">
+        <label for="remainingFuel">Reserve Fuel</label>
+        <input id="remainingFuel" type="text" inputmode="decimal" placeholder="0">
+      </div>
+      <div class="field">
+        <label for="workTime">Work Time</label>
+        <input id="workTime" type="text" inputmode="decimal" placeholder="0">
+      </div>
+    </div>
+  </div>
+
+  <!-- 3 Buttons in One Row: Calculate Flight | View Route | Reset -->
+  <div class="action-buttons-3">
+    <button class="btn-calc" id="calculateFlight" type="button">Calculate Flight</button>
+    <button class="btn-view-route" id="showRouteMap" type="button">View Route</button>
+    <button class="btn-reset" id="resetNav" type="button">Reset</button>
+  </div>
+
+  <!-- LEAFLET MAP FULL-SCREEN MODAL -->
+  <div id="mapModalOverlay" class="map-modal-overlay hidden">
+    <div class="map-modal-content">
+      <div class="map-modal-header">
+        <h3>🛰️ LEAFLET EGYPT OFFLINE MAP</h3>
+        <div class="modal-header-actions">
+          <button type="button" class="btn-toggle-arrows active" id="toggleRouteArrowsBtn">
+            ➤ أسهم السير: مفعلة
+          </button>
+          <button type="button" class="btn-exit-modal" id="exitMapModal">EXIT ✕</button>
+        </div>
+      </div>
+      <div class="map-modal-body">
+        <!-- Airports Checklist & Add Airport Box inside Modal -->
+        <div class="map-filter-box">
+          <div class="map-filter-header">
+            <span>✈️ المطارات على الخريطة / Airports</span>
+            <div class="filter-bulk-btns">
+              <button type="button" class="btn-mini" id="toggleAddAirportForm">+ إضافة مطار</button>
+              <button type="button" class="btn-mini" id="selectAllAirports">Show All</button>
+              <button type="button" class="btn-mini" id="deselectAllAirports">Hide All</button>
+            </div>
+          </div>
+
+          <!-- Add Custom Airport Form -->
+          <div class="add-airport-box hidden" id="addAirportBox">
+            <div class="add-airport-title">➕ إضافة مطار جديد للخريطة</div>
+            <div class="field" style="margin-bottom: 5px;">
+              <input id="newApName" type="text" placeholder="اسم المطار (مثال: مطار العلمين)" style="height:36px !important; font-size:13px !important;">
+            </div>
+            <div class="coord-row" style="margin-bottom: 4px;">
+              <div class="field"><select id="newApLatHem" style="height:36px !important; font-size:12px !important;"><option>N</option><option>S</option></select></div>
+              <div class="field"><input id="newApLatDeg" type="text" inputmode="decimal" placeholder="Lat °" style="height:36px !important; font-size:12px !important;"></div>
+              <div class="field"><input id="newApLatMin" type="text" inputmode="decimal" placeholder="Min ′" style="height:36px !important; font-size:12px !important;"></div>
+              <div class="field"><input id="newApLatSec" type="text" inputmode="decimal" placeholder="Sec ″" style="height:36px !important; font-size:12px !important;"></div>
+            </div>
+            <div class="coord-row" style="margin-bottom: 4px;">
+              <div class="field"><select id="newApLonHem" style="height:36px !important; font-size:12px !important;"><option>E</option><option>W</option></select></div>
+              <div class="field"><input id="newApLonDeg" type="text" inputmode="decimal" placeholder="Lon °" style="height:36px !important; font-size:12px !important;"></div>
+              <div class="field"><input id="newApLonMin" type="text" inputmode="decimal" placeholder="Min ′" style="height:36px !important; font-size:12px !important;"></div>
+              <div class="field"><input id="newApLonSec" type="text" inputmode="decimal" placeholder="Sec ″" style="height:36px !important; font-size:12px !important;"></div>
+            </div>
+            <button type="button" class="btn-add-ap" id="saveNewAirportBtn">حفظ وإضافة للخريطة</button>
+          </div>
+
+          <div class="airport-checklist" id="airportChecklist"></div>
+        </div>
+
+        <div id="leafletEgyptMap"></div>
+        <div class="map-legend-bar">
+          <span class="legend-item"><i class="dot-go"></i> مسار الذهاب (A ➔ B)</span>
+          <span class="legend-item"><i class="dot-back"></i> مسار العودة (B ➔ A)</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Navigation Summary Results -->
+  <div class="flight-summary">
+    <div class="summary-row">
+      <span>Distance:</span>
+      <strong>
+        <span id="distanceValue">—</span>
+        <select id="distanceUnit" class="unit-select">
+          <option value="KM">KM</option>
+          <option value="NM">NM</option>
+        </select>
+      </strong>
+    </div>
+    <div class="summary-row">
+      <span>Bearing (Direction):</span>
+      <strong id="radialResult">—</strong>
+    </div>
+    <div class="summary-row">
+      <span>Estimated Time:</span>
+      <strong id="navTime">—</strong>
+    </div>
+    <div class="summary-row">
+      <span>Total Fuel Consumed:</span>
+      <strong id="totalConsumed">—</strong>
+    </div>
+    <div class="summary-row">
+      <span>Remaining Fuel:</span>
+      <strong id="fuelAfter">—</strong>
+    </div>
+    <div class="summary-row">
+      <span>Fuel & Weight Status:</span>
+      <strong id="fuelStatusText">—</strong>
+    </div>
+  </div>
+</section>
+
+
+<!-- Speed / Distance / Time Calculator Popup -->
+<div class="sdt-overlay hidden" id="sdtCalculatorModal" role="dialog" aria-modal="true" aria-labelledby="sdtTitle">
+  <div class="sdt-dialog">
+    <h3 class="sdt-heading" id="sdtTitle">Speed – Distance – Time</h3>
+    <p class="sdt-subtitle">Choose the value you want to calculate. Enter the other two values.</p>
+    <div class="sdt-field" style="margin-bottom:12px;">
+      <label for="sdtCalculateFor">Calculate / احسب الناتج</label>
+      <select id="sdtCalculateFor" style="width:100%;">
+        <option value="speed">Speed / السرعة</option>
+        <option value="distance">Distance / المسافة</option>
+        <option value="time">Time / الزمن</option>
+      </select>
+    </div>
+    <div class="sdt-fields">
+      <div class="sdt-field" id="sdtDistanceField">
+        <label for="sdtDistance">Distance / المسافة</label>
+        <div class="sdt-control-row">
+          <input id="sdtDistance" type="number" inputmode="decimal" min="0" step="any" placeholder="Enter distance">
+          <select id="sdtDistanceUnit" aria-label="Distance unit">
+            <option value="km">km</option><option value="m">m</option><option value="mi">mile</option><option value="nmi">NM</option>
+          </select>
+        </div>
+      </div>
+      <div class="sdt-field" id="sdtTimeField">
+        <label>Time / الزمن (HH : MM : SS)</label>
+        <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;direction:ltr;">
+          <div><input id="sdtTimeHours" type="number" inputmode="numeric" min="0" step="1" placeholder="HH" aria-label="Hours" style="width:100%;text-align:center;"><small style="display:block;text-align:center;color:#64748b;">Hour / ساعة</small></div>
+          <div><input id="sdtTimeMinutes" type="number" inputmode="numeric" min="0" max="59" step="1" placeholder="MM" aria-label="Minutes" style="width:100%;text-align:center;"><small style="display:block;text-align:center;color:#64748b;">Minute / دقيقة</small></div>
+          <div><input id="sdtTimeSeconds" type="number" inputmode="numeric" min="0" max="59" step="1" placeholder="SS" aria-label="Seconds" style="width:100%;text-align:center;"><small style="display:block;text-align:center;color:#64748b;">Second / ثانية</small></div>
+        </div>
+      </div>
+      <div class="sdt-field" id="sdtSpeedField">
+        <label for="sdtSpeed">Speed / السرعة</label>
+        <div class="sdt-control-row">
+          <input id="sdtSpeed" type="number" inputmode="decimal" min="0" step="any" placeholder="Enter speed">
+          <select id="sdtSpeedUnit" aria-label="Speed unit">
+            <option value="kt">knot (kt)</option><option value="kmh">km/h</option><option value="ms">m/s</option><option value="mph">mph</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="sdt-formula" id="sdtFormula">Speed = Distance ÷ Time</div>
+    <button class="sdt-exit" id="exitSdtCalculator" type="button">Exit / خروج</button>
+  </div>
+</div>
+
+<!-- Bottom Navigation Tabs -->
+<nav class="tabs">
+  <button class="tab active" id="weightTab" type="button">Weight / الأوزان</button>
+  <button class="tab" id="navTab" type="button">Navigation / الملاحة</button>
+</nav>
+
+</main>
+
+<!-- Leaflet JS Library -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+<script>
+// Register Service Worker for Offline Persistence on iPhone & Android
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js')
+      .then(reg => console.log('ServiceWorker registered! Scope:', reg.scope))
+      .catch(err => console.log('ServiceWorker registration failed:', err));
+  });
+}
+
+const aircraftWeights = {
+  "4901": 946.3, "4903": 958.4, "4904": 916.5, "4905": 955, "4907": 918.5,
+  "4908": 920, "4909": 914, "4910": 921, "4911": 953, "4912": 969,
+  "4913": 958.4, "4914": 923.5, "4916": 910, "4917": 917, "4918": 912,
+  "4923": 956, "4924": 954, "4925": 951, "4927": 959, "4928": 963,
+  "4929": 963, "4930": 950, "4931": 960, "4932": 959, "4933": 953,
+  "4934": 961, "4935": 964.9, "4936": 959, "4937": 956.5, "4938": 953
+};
+
+// Fixed 5 Starting Points for the Starting Point dropdown
+const startingPoints = {
+  siwa: { lat: 29 + 33/60 + 54.1/3600, lon: 25 + 35/60 + 58.3/3600, mtow: 1191, text: "N 29° 33′ 54.1″ · E 025° 35′ 58.3″" },
+  siwaTown: { lat: 29 + 12/60 + 20.45/3600, lon: 25 + 30/60 + 42.54/3600, text: "N 29° 12′ 20.45″ · E 025° 30′ 42.54″" },
+  baheEldeen: { lat: 29 + 13/60 + 39.15/3600, lon: 25 + 18/60 + 6.20/3600, text: "N 29° 13′ 39.15″ · E 025° 18′ 06.20″" },
+  miliz: { lat: 30 + 25/60 + 10/3600, lon: 33 + 8/60 + 30/3600, mtow: 1183, text: "N 30° 25′ 10″ · E 033° 08′ 30″" },
+  owainat: { lat: 22 + 35/60, lon: 28 + 42/60 + 58/3600, mtow: 1187, text: "N 22° 35′ 00″ · E 028° 42′ 58″" }
+};
+
+// Separate Map Airports List with Checkboxes & Custom Save support
+const defaultLeafletAirportsList = [
+  { id: "siwa", name: "SIWA / سيوة", lat: 29 + 33/60 + 54.1/3600, lon: 25 + 35/60 + 58.3/3600, checked: true, custom: false },
+  { id: "miliz", name: "EL MELLIZ / مليز", lat: 30 + 25/60 + 10/3600, lon: 33 + 8/60 + 30/3600, checked: true, custom: false },
+  { id: "owainat", name: "EAST OWEINAT / شرق العوينات", lat: 22 + 35/60, lon: 28 + 42/60 + 58/3600, checked: true, custom: false },
+  { id: "habata", name: "HABATA / حباطة", lat: 31 + 6/60 + 43.06/3600, lon: 25 + 27/60 + 13.34/3600, checked: true, custom: false },
+  { id: "matruh", name: "MARSA MATRUH / مرسى مطروح", lat: 31 + 19/60 + 31/3600, lon: 27 + 13/60 + 20/3600, checked: true, custom: false },
+  { id: "beniSuef", name: "BENI SUEF / بني سويف", lat: 29 + 11/60 + 53/3600, lon: 31 + 1/60 + 8/3600, checked: true, custom: false },
+  { id: "cairo", name: "CAIRO INTL / القاهرة", lat: 30.1219, lon: 31.4056, checked: true, custom: false },
+  { id: "borg", name: "BORG EL ARAB / برج العرب", lat: 30.9177, lon: 29.6964, checked: false, custom: false },
+  { id: "hurghada", name: "HURGHADA / الغردقة", lat: 27.1783, lon: 33.7994, checked: false, custom: false },
+  { id: "sharm", name: "SHARM EL SHEIKH / شرم الشيخ", lat: 27.9773, lon: 34.3949, checked: false, custom: false }
+];
+
+let customAirportsList = [];
+try {
+  const saved = localStorage.getItem("aerocalc_custom_airports");
+  if (saved) customAirportsList = JSON.parse(saved);
+} catch (e) { console.error(e); }
+
+let leafletAirportsList = [...defaultLeafletAirportsList, ...customAirportsList];
+
+function saveCustomAirportsToStorage() {
+  try {
+    const customs = leafletAirportsList.filter(a => a.custom);
+    localStorage.setItem("aerocalc_custom_airports", JSON.stringify(customs));
+  } catch (e) { console.error(e); }
+}
+
+const $ = id => document.getElementById(id);
+const fmt = (n, d = 2) => Number(n).toLocaleString("en-US", { minimumFractionDigits: d, maximumFractionDigits: d });
+
+Object.entries(aircraftWeights).forEach(([no, w]) => {
+  let opt = document.createElement("option");
+  opt.value = no;
+  opt.textContent = `${no} (${w} kg)`;
+  $("aircraft").appendChild(opt);
+});
+
+function getCurrentWeightInfo() {
+  let key = $("airport").value;
+  let mtow = startingPoints[key] ? startingPoints[key].mtow : 1191;
+  let no = $("aircraft").value;
+  let w = aircraftWeights[no];
+  let fuelL = Number($("weightFuelLitres").value) || 0;
+  let extra = Number($("extra").value) || 0;
+  if (!w) return { hasAircraft: false, totalKg: 0, mtow: mtow, isOverweight: false, diff: 0 };
+  let totalKg = w + (fuelL * 0.76) + extra;
+  return { hasAircraft: true, totalKg: totalKg, mtow: mtow, isOverweight: totalKg > mtow, diff: totalKg - mtow };
+}
+
+function calcWeight() {
+  let info = getCurrentWeightInfo();
+  if (info.hasAircraft) {
+    let totalLb = info.totalKg * 2.205;
+    $("totalKg").textContent = fmt(info.totalKg, 2) + " kg";
+    $("totalLb").textContent = fmt(totalLb, 2) + " lb";
+    if (info.isOverweight) {
+      $("weightStatus").style.color = "#ef4444";
+      $("weightStatus").textContent = `Warning: Weight exceeds MTOW by ${fmt(info.diff, 2)} kg!`;
+    } else {
+      $("weightStatus").style.color = "#10b981";
+      $("weightStatus").textContent = "Weight within MTOW limits.";
+    }
+  } else {
+    $("totalKg").textContent = "0.00 kg";
+    $("totalLb").textContent = "0.00 lb";
+    $("weightStatus").textContent = "";
+  }
+}
+
+function dms(idPrefix, hemId) {
+  let d = Number($(idPrefix + "Deg").value);
+  let m = Number($(idPrefix + "Min").value || 0);
+  let s = Number($(idPrefix + "Sec").value || 0);
+  let hem = $(hemId).value;
+  if ($(idPrefix + "Deg").value === "") return NaN;
+  let v = d + m/60 + s/3600;
+  return (hem === "S" || hem === "W") ? -v : v;
+}
+
+function getStartCoords() {
+  let val = $("navAirport").value;
+  if (val === "custom") {
+    return { lat: dms("startLat", "startLatHem"), lon: dms("startLon", "startLonHem") };
+  }
+  return startingPoints[val] || startingPoints["siwa"];
+}
+
+function calcFlight() {
+  let a = getStartCoords();
+  let bLat = dms("targetLat", "targetLatHem");
+  let bLon = dms("targetLon", "targetLonHem");
+
+  if (!Number.isFinite(a.lat) || !Number.isFinite(a.lon) || !Number.isFinite(bLat) || !Number.isFinite(bLon)) {
+    $("distanceValue").textContent = "—";
+    $("radialResult").textContent = "—";
+    $("navTime").textContent = "—";
+    $("totalConsumed").textContent = "—";
+    $("fuelAfter").textContent = "—";
+    $("fuelStatusText").textContent = "—";
+    return;
+  }
+
+  const rad = x => x * Math.PI / 180;
+  const R = 6371;
+  let dLat = rad(bLat - a.lat);
+  let dLon = rad(bLon - a.lon);
+  let h = Math.sin(dLat/2)**2 + Math.cos(rad(a.lat)) * Math.cos(rad(bLat)) * Math.sin(dLon/2)**2;
+  let distKm = 2 * R * Math.asin(Math.sqrt(h));
+  
+  let isRound = $("roundTrip").checked;
+  if (isRound) distKm *= 2;
+
+  let y = Math.sin(dLon) * Math.cos(rad(bLat));
+  let x = Math.cos(rad(a.lat)) * Math.sin(rad(bLat)) - Math.sin(rad(a.lat)) * Math.cos(rad(bLat)) * Math.cos(dLon);
+  let bearing = (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
+
+  let unit = $("distanceUnit").value;
+  let dist = (unit === "NM") ? distKm / 1.852 : distKm;
+  $("distanceValue").textContent = fmt(dist, 2);
+  $("radialResult").textContent = fmt(bearing, 1) + "°";
+
+  let distNm = distKm / 1.852;
+  let flightHrs = distNm / 78;
+  let workHrs = Number($("workTime").value) || 0;
+  let totalTimeHrs = flightHrs + workHrs;
+
+  let totalMins = Math.round(totalTimeHrs * 60);
+  $("navTime").textContent = `${Math.floor(totalMins / 60)} hrs & ${totalMins % 60} mins`;
+
+  let totalConsumed = totalTimeHrs * 20;
+  $("totalConsumed").textContent = fmt(totalConsumed, 2) + " Liters";
+
+  let availFuel = Number($("totalFuel").value) || 0;
+  let reserveFuel = Number($("remainingFuel").value) || 0;
+  let remFuel = availFuel - totalConsumed - reserveFuel;
+
+  $("fuelAfter").textContent = fmt(remFuel, 2) + " Liters";
+
+  let weightInfo = getCurrentWeightInfo();
+  let isFuelBad = remFuel < 0 || availFuel === 0;
+
+  if (isFuelBad && weightInfo.isOverweight) {
+    $("fuelAfter").className = "status-bad";
+    $("fuelStatusText").className = "status-bad";
+    $("fuelStatusText").textContent = "Warning: Insufficient Fuel & Over Weight!";
+  } else if (isFuelBad) {
+    $("fuelAfter").className = "status-bad";
+    $("fuelStatusText").className = "status-bad";
+    $("fuelStatusText").textContent = "Warning: Insufficient Fuel!";
+  } else if (weightInfo.isOverweight) {
+    $("fuelAfter").className = "";
+    $("fuelStatusText").className = "status-bad";
+    $("fuelStatusText").textContent = `Warning: Over Weight by ${fmt(weightInfo.diff, 1)} kg!`;
+  } else {
+    $("fuelAfter").className = "";
+    $("fuelStatusText").className = "status-good";
+    $("fuelStatusText").textContent = "Fuel & Weight OK";
+  }
+}
+
+
+// Speed / Distance / Time popup calculator. User chooses which value is calculated.
+(() => {
+  const modal = $("sdtCalculatorModal");
+  const distanceInput = $("sdtDistance"), speedInput = $("sdtSpeed");
+  const timeParts = [$("sdtTimeHours"), $("sdtTimeMinutes"), $("sdtTimeSeconds")];
+  const calculateFor = $("sdtCalculateFor");
+  const distanceFactor = { km: 1000, m: 1, mi: 1609.344, nmi: 1852 };
+  const speedFactor = { kt: 1852 / 3600, kmh: 1000 / 3600, ms: 1, mph: 1609.344 / 3600 };
+  const readNumber = el => {
+    const raw = el.value.trim();
+    if (raw === "") return null;
+    const n = Number(raw);
+    return Number.isFinite(n) && n >= 0 ? n : null;
+  };
+  function readTimeSeconds() {
+    const vals = timeParts.map(readNumber);
+    if (vals.every(v => v === null)) return null;
+    const [h,m,sec] = vals.map(v => v ?? 0);
+    if (!Number.isInteger(h) || !Number.isInteger(m) || !Number.isInteger(sec) || m > 59 || sec > 59) return null;
+    return h * 3600 + m * 60 + sec;
+  }
+  function writeTimeSeconds(total) {
+    if (!Number.isFinite(total) || total < 0) return;
+    let seconds = Math.round(total);
+    const h = Math.floor(seconds / 3600); seconds %= 3600;
+    const m = Math.floor(seconds / 60); const sec = seconds % 60;
+    timeParts[0].value = String(h);
+    timeParts[1].value = String(m).padStart(2, "0");
+    timeParts[2].value = String(sec).padStart(2, "0");
+  }
+  function clearTargetValue(target) {
+    if (target === "distance") distanceInput.value = "";
+    if (target === "speed") speedInput.value = "";
+    if (target === "time") timeParts.forEach(el => el.value = "");
+  }
+  function updateTargetState() {
+    const target = calculateFor.value;
+    distanceInput.readOnly = target === "distance";
+    speedInput.readOnly = target === "speed";
+    timeParts.forEach(el => el.readOnly = target === "time");
+    distanceInput.style.background = target === "distance" ? "#dbeafe" : "#fff";
+    speedInput.style.background = target === "speed" ? "#dbeafe" : "#fff";
+    timeParts.forEach(el => el.style.background = target === "time" ? "#dbeafe" : "#fff");
+    distanceInput.setAttribute("aria-label", target === "distance" ? "Distance result" : "Distance input");
+    speedInput.setAttribute("aria-label", target === "speed" ? "Speed result" : "Speed input");
+    timeParts.forEach(el => el.setAttribute("aria-label", target === "time" ? `${el === timeParts[0] ? "Hours" : el === timeParts[1] ? "Minutes" : "Seconds"} result` : `${el === timeParts[0] ? "Hours" : el === timeParts[1] ? "Minutes" : "Seconds"} input`));
+    const distanceLabel = $("sdtDistanceField").querySelector("label");
+    const speedLabel = $("sdtSpeedField").querySelector("label");
+    const timeLabel = $("sdtTimeField").querySelector("label");
+    distanceLabel.textContent = target === "distance" ? "Distance / المسافة — Result / الناتج" : "Distance / المسافة — Input / إدخال";
+    speedLabel.textContent = target === "speed" ? "Speed / السرعة — Result / الناتج" : "Speed / السرعة — Input / إدخال";
+    timeLabel.textContent = target === "time" ? "Time / الزمن (HH : MM : SS) — Result / الناتج" : "Time / الزمن (HH : MM : SS) — Input / إدخال";
+    $("sdtFormula").textContent = target === "speed" ? "Speed = Distance ÷ Time" : target === "distance" ? "Distance = Speed × Time" : "Time = Distance ÷ Speed";
+    calculate();
+  }
+  function calculate() {
+    const target = calculateFor.value;
+    const dRaw = readNumber(distanceInput), vRaw = readNumber(speedInput), tRaw = readTimeSeconds();
+    const d = dRaw === null ? null : dRaw * distanceFactor[$("sdtDistanceUnit").value];
+    const v = vRaw === null ? null : vRaw * speedFactor[$("sdtSpeedUnit").value];
+    if (target === "speed" && d !== null && tRaw !== null && tRaw > 0) {
+      speedInput.value = String(Number((d / tRaw / speedFactor[$("sdtSpeedUnit").value]).toFixed(6)));
+    } else if (target === "distance" && v !== null && tRaw !== null) {
+      distanceInput.value = String(Number((v * tRaw / distanceFactor[$("sdtDistanceUnit").value]).toFixed(6)));
+    } else if (target === "time" && d !== null && v !== null && v > 0) {
+      writeTimeSeconds(d / v);
+    }
+  }
+  [distanceInput, speedInput, ...timeParts].forEach(el => el.addEventListener("input", calculate));
+  [$("sdtDistanceUnit"), $("sdtSpeedUnit")].forEach(el => el.addEventListener("change", calculate));
+  calculateFor.addEventListener("change", () => {
+    // The selected quantity is the output: clear its old value, then calculate it from the other two inputs.
+    clearTargetValue(calculateFor.value);
+    updateTargetState();
+  });
+  $("openSdtCalculator").addEventListener("click", () => {
+    modal.classList.remove("hidden");
+    document.body.style.overflow = "hidden";
+    updateTargetState();
+    const firstInput = calculateFor.value === "distance" ? speedInput : calculateFor.value === "speed" ? distanceInput : distanceInput;
+    firstInput.focus();
+  });
+  function closeSdt() {
+    modal.classList.add("hidden");
+    document.body.style.overflow = "";
+  }
+  $("exitSdtCalculator").addEventListener("click", closeSdt);
+  modal.addEventListener("click", event => { if (event.target === modal) closeSdt(); });
+  document.addEventListener("keydown", event => { if (event.key === "Escape" && !modal.classList.contains("hidden")) closeSdt(); });
+  updateTargetState();
+})();
+
+$("weightTab").onclick = () => {
+  $("weightPanel").classList.remove("hidden");
+  $("navPanel").classList.add("hidden");
+  $("weightTab").classList.add("active");
+  $("navTab").classList.remove("active");
+};
+
+$("navTab").onclick = () => {
+  $("navPanel").classList.remove("hidden");
+  $("weightPanel").classList.add("hidden");
+  $("navTab").classList.add("active");
+  $("weightTab").classList.remove("active");
+};
+
+$("airport").onchange = () => { calcWeight(); calcFlight(); };
+$("aircraft").onchange = () => { calcWeight(); calcFlight(); };
+$("extra").onchange = () => { calcWeight(); calcFlight(); };
+$("weightFuelLitres").oninput = (e) => {
+  $("totalFuel").value = e.target.value;
+  calcWeight();
+  calcFlight();
+};
+
+$("resetWeight").onclick = () => {
+  $("airport").value = "siwa";
+  $("aircraft").value = "";
+  $("weightFuelLitres").value = "";
+  $("extra").value = "0";
+  calcWeight();
+  calcFlight();
+};
+
+$("totalFuel").oninput = (e) => {
+  $("weightFuelLitres").value = e.target.value;
+  calcWeight();
+  calcFlight();
+};
+
+const navInputs = [
+  "navAirport", "startLatHem", "startLatDeg", "startLatMin", "startLatSec",
+  "startLonHem", "startLonDeg", "startLonMin", "startLonSec",
+  "targetLatHem", "targetLatDeg", "targetLatMin", "targetLatSec",
+  "targetLonHem", "targetLonDeg", "targetLonMin", "targetLonSec",
+  "roundTrip", "distanceUnit", "remainingFuel", "workTime"
+];
+
+navInputs.forEach(id => {
+  $(id).addEventListener("input", calcFlight);
+  $(id).addEventListener("change", calcFlight);
+});
+
+$("navAirport").onchange = (e) => {
+  let val = e.target.value;
+  if (val === "custom") {
+    $("manualStart").classList.remove("hidden");
+    $("startAirportCoords").textContent = "Enter manual coordinates below";
+  } else {
+    $("manualStart").classList.add("hidden");
+    if (startingPoints[val]) {
+      $("startAirportCoords").textContent = startingPoints[val].text;
+    }
+  }
+  calcFlight();
+};
+
+$("resetNav").onclick = () => {
+  $("navAirport").value = "siwa";
+  $("manualStart").classList.add("hidden");
+  $("startAirportCoords").textContent = startingPoints["siwa"].text;
+  ["startLatDeg", "startLatMin", "startLatSec", "startLonDeg", "startLonMin", "startLonSec",
+   "targetLatDeg", "targetLatMin", "targetLatSec", "targetLonDeg", "targetLonMin", "targetLonSec",
+   "totalFuel", "remainingFuel", "workTime"].forEach(id => $(id).value = "");
+  $("roundTrip").checked = false;
+  $("distanceUnit").value = "KM";
+  calcFlight();
+};
+
+$("calculateFlight").onclick = calcFlight;
+
+// =========================================================================
+// LEAFLET MAP OFFLINE ENGINE WITH EXACT OVERLAPPING RETURN ROUTE
+// =========================================================================
+let leafletMap = null;
+let airportMarkersGroup = null;
+let routeLayerGroup = null;
+let showArrows = true;
+
+const egyptBounds = L.latLngBounds([21.5, 24.2], [32.2, 37.2]);
+
+function calculateAngleDeg(lat1, lon1, lat2, lon2) {
+  const rad = d => d * Math.PI / 180;
+  const dLon = rad(lon2 - lon1);
+  const y = Math.sin(dLon) * Math.cos(rad(lat2));
+  const x = Math.cos(rad(lat1)) * Math.sin(rad(lat2)) - Math.sin(rad(lat1)) * Math.cos(rad(lat2)) * Math.cos(dLon);
+  return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
+}
+
+function createArrowIcon(angleDeg, color) {
+  return L.divIcon({
+    className: 'route-arrow-marker',
+    html: `<svg width="24" height="24" viewBox="0 0 24 24" style="transform: rotate(${angleDeg}deg); filter: drop-shadow(0 2px 3px rgba(0,0,0,0.8));">
+             <path d="M12 2L4.5 20.29l.71.71L12 18l6.79 3 .71-.71z" fill="${color}" stroke="#ffffff" stroke-width="1.5"/>
+           </svg>`,
+    iconSize: [24, 24],
+    iconAnchor: [12, 12]
+  });
+}
+
+function initAirportCheckboxes() {
+  const container = $("airportChecklist");
+  container.innerHTML = "";
+  leafletAirportsList.forEach(ap => {
+    let lbl = document.createElement("label");
+    lbl.className = "airport-check-item";
+
+    let leftDiv = document.createElement("div");
+    leftDiv.className = "airport-check-left";
+
+    let cb = document.createElement("input");
+    cb.type = "checkbox";
+    cb.checked = ap.checked;
+    cb.onchange = () => {
+      ap.checked = cb.checked;
+      updateLeafletAirports();
+    };
+
+    let span = document.createElement("span");
+    span.textContent = ap.name;
+    span.title = ap.name;
+
+    leftDiv.appendChild(cb);
+    leftDiv.appendChild(span);
+    lbl.appendChild(leftDiv);
+
+    if (ap.custom) {
+      let delBtn = document.createElement("button");
+      delBtn.type = "button";
+      delBtn.className = "btn-del-ap";
+      delBtn.textContent = "✕";
+      delBtn.onclick = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        leafletAirportsList = leafletAirportsList.filter(item => item.id !== ap.id);
+        saveCustomAirportsToStorage();
+        initAirportCheckboxes();
+        updateLeafletAirports();
+      };
+      lbl.appendChild(delBtn);
+    }
+
+    container.appendChild(lbl);
+  });
+}
+
+function initLeafletMap() {
+  if (leafletMap) {
+    leafletMap.invalidateSize();
+    updateLeafletAirports();
+    updateLeafletRoute();
+    return;
+  }
+
+  leafletMap = L.map('leafletEgyptMap', {
+    center: [26.8206, 30.8025],
+    zoom: 6,
+    minZoom: 5,
+    maxZoom: 11,
+    maxBounds: egyptBounds,
+    maxBoundsViscosity: 1.0
+  });
+
+  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+    attribution: 'Esri',
+    maxZoom: 11
+  }).addTo(leafletMap);
+
+  airportMarkersGroup = L.layerGroup().addTo(leafletMap);
+  routeLayerGroup = L.layerGroup().addTo(leafletMap);
+
+  initAirportCheckboxes();
+  updateLeafletAirports();
+  updateLeafletRoute();
+}
+
+function updateLeafletAirports() {
+  if (!leafletMap || !airportMarkersGroup) return;
+  airportMarkersGroup.clearLayers();
+
+  leafletAirportsList.forEach(ap => {
+    if (!ap.checked) return;
+    let marker = L.circleMarker([ap.lat, ap.lon], {
+      radius: 6, color: "#ffffff", weight: 2, fillColor: "#dc2626", fillOpacity: 1
+    });
+
+    marker.bindTooltip(ap.name, {
+      permanent: true, direction: 'top', offset: [0, -6], className: 'airport-permanent-label'
+    });
+
+    marker.bindPopup(`<b>${ap.name}</b><br><button style="margin-top:6px;padding:5px 10px;background:#2563eb;color:#fff;border:none;border-radius:6px;font-weight:bold;cursor:pointer;" onclick="setDestFromMap(${ap.lat}, ${ap.lon})">📍 تعيين كنقطة وصول (B)</button>`);
+    
+    airportMarkersGroup.addLayer(marker);
+  });
+}
+
+window.setDestFromMap = function(lat, lon) {
+  const latAbs = Math.abs(lat);
+  const latD = Math.floor(latAbs);
+  const latMFloat = (latAbs - latD) * 60;
+  const latM = Math.floor(latMFloat);
+  const latS = ((latMFloat - latM) * 60).toFixed(2);
+
+  const lonAbs = Math.abs(lon);
+  const lonD = Math.floor(lonAbs);
+  const lonMFloat = (lonAbs - lonD) * 60;
+  const lonM = Math.floor(lonMFloat);
+  const lonS = ((lonMFloat - lonM) * 60).toFixed(2);
+
+  $("targetLatHem").value = lat >= 0 ? "N" : "S";
+  $("targetLatDeg").value = latD;
+  $("targetLatMin").value = latM;
+  $("targetLatSec").value = latS;
+
+  $("targetLonHem").value = lon >= 0 ? "E" : "W";
+  $("targetLonDeg").value = lonD;
+  $("targetLonMin").value = lonM;
+  $("targetLonSec").value = lonS;
+
+  calcFlight();
+  updateLeafletRoute();
+  leafletMap.closePopup();
+};
+
+function updateLeafletRoute() {
+  if (!leafletMap || !routeLayerGroup) return;
+  routeLayerGroup.clearLayers();
+
+  let a = getStartCoords();
+  let bLat = dms("targetLat", "targetLatHem");
+  let bLon = dms("targetLon", "targetLonHem");
+
+  if (!Number.isFinite(a.lat) || !Number.isFinite(a.lon) || !Number.isFinite(bLat) || !Number.isFinite(bLon)) {
+    return;
+  }
+
+  // Start Marker A
+  L.circleMarker([a.lat, a.lon], { radius: 8, color: '#fff', weight: 2, fillColor: '#10b981', fillOpacity: 1 })
+    .bindTooltip("A · البداية", { permanent: true, direction: 'bottom', offset: [0, 8], className: 'airport-permanent-label' })
+    .addTo(routeLayerGroup);
+
+  // Dest Marker B
+  L.circleMarker([bLat, bLon], { radius: 8, color: '#fff', weight: 2, fillColor: '#ef4444', fillOpacity: 1 })
+    .bindTooltip("B · الوصول", { permanent: true, direction: 'bottom', offset: [0, 8], className: 'airport-permanent-label' })
+    .addTo(routeLayerGroup);
+
+  // Outbound Line (Go: A -> B)
+  let outboundLine = L.polyline([[a.lat, a.lon], [bLat, bLon]], {
+    color: '#ef4444', weight: 4, dashArray: '8, 6'
+  }).addTo(routeLayerGroup);
+
+  if (showArrows) {
+    const goAngle = calculateAngleDeg(a.lat, a.lon, bLat, bLon);
+    [0.25, 0.55].forEach(t => {
+      const arrowLat = a.lat + (bLat - a.lat) * t;
+      const arrowLon = a.lon + (bLon - a.lon) * t;
+      L.marker([arrowLat, arrowLon], { icon: createArrowIcon(goAngle, '#ef4444'), interactive: false })
+        .addTo(routeLayerGroup);
+    });
+  }
+
+  // Return Line (Back: B -> A) directly on top of the outbound path
+  let isRound = $("roundTrip").checked;
+  if (isRound) {
+    L.polyline([[bLat, bLon], [a.lat, a.lon]], {
+      color: '#a855f7', weight: 4, dashArray: '8, 12', dashOffset: '8'
+    }).addTo(routeLayerGroup);
+
+    if (showArrows) {
+      const backAngle = calculateAngleDeg(bLat, bLon, a.lat, a.lon);
+      [0.35, 0.75].forEach(t => {
+        const arrowLat = bLat + (a.lat - bLat) * t;
+        const arrowLon = bLon + (a.lon - bLon) * t;
+        L.marker([arrowLat, arrowLon], { icon: createArrowIcon(backAngle, '#a855f7'), interactive: false })
+          .addTo(routeLayerGroup);
+      });
+    }
+  }
+
+  leafletMap.fitBounds(outboundLine.getBounds(), { padding: [50, 50], maxZoom: 9 });
+}
+
+// Toggle Add Custom Airport Form
+$("toggleAddAirportForm").onclick = () => {
+  $("addAirportBox").classList.toggle("hidden");
+};
+
+// Save New Custom Airport
+$("saveNewAirportBtn").onclick = () => {
+  const name = $("newApName").value.trim();
+  if (!name) {
+    alert("Please enter airport name / يرجى إدخال اسم المطار");
+    return;
+  }
+  const lat = dms("newApLat", "newApLatHem");
+  const lon = dms("newApLon", "newApLonHem");
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
+    alert("Invalid coordinates / إحداثيات غير صحيحة");
+    return;
+  }
+
+  const newAp = {
+    id: "custom_" + Date.now(),
+    name: name,
+    lat: lat,
+    lon: lon,
+    checked: true,
+    custom: true
+  };
+
+  leafletAirportsList.push(newAp);
+  saveCustomAirportsToStorage();
+  initAirportCheckboxes();
+  updateLeafletAirports();
+
+  $("newApName").value = "";
+  ["newApLatDeg", "newApLatMin", "newApLatSec", "newApLonDeg", "newApLonMin", "newApLonSec"].forEach(id => $(id).value = "");
+  $("addAirportBox").classList.add("hidden");
+};
+
+// Show All / Hide All
+$("selectAllAirports").onclick = () => {
+  leafletAirportsList.forEach(ap => ap.checked = true);
+  initAirportCheckboxes();
+  updateLeafletAirports();
+};
+
+$("deselectAllAirports").onclick = () => {
+  leafletAirportsList.forEach(ap => ap.checked = false);
+  initAirportCheckboxes();
+  updateLeafletAirports();
+};
+
+// Toggle Arrows Button
+$("toggleRouteArrowsBtn").onclick = () => {
+  showArrows = !showArrows;
+  $("toggleRouteArrowsBtn").classList.toggle("active", showArrows);
+  $("toggleRouteArrowsBtn").textContent = showArrows ? "➤ أسهم السير: مفعلة" : "➤ إظهار أسهم السير";
+  updateLeafletRoute();
+};
+
+// View Route Button -> Opens Leaflet Map Modal
+$("showRouteMap").onclick = () => {
+  calcFlight();
+  $("mapModalOverlay").classList.remove("hidden");
+  setTimeout(() => {
+    initLeafletMap();
+  }, 100);
+};
+
+// Exit Map Modal
+$("exitMapModal").onclick = () => {
+  $("mapModalOverlay").classList.add("hidden");
+};
+</script>
+</body>
+</html>
